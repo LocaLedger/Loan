@@ -3,72 +3,1640 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>LocaLoan — Loan Payoff Optimizer</title>
+<title>LocaLoan</title>
+
+<script>
+  window.tailwind = {
+    config: {
+      theme: {
+        extend: {
+          fontSize: {
+            'xxs':  ['0.625rem', { lineHeight: '0.875rem' }],
+            'xxxs': ['0.5rem',   { lineHeight: '0.75rem'  }],
+          }
+        }
+      }
+    }
+  }
+</script>
 <script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
-  * { font-family: 'Space Mono', 'Courier New', monospace; }
-  :root { --brand: #F97316; --brand-dim: rgba(249,115,22,0.15); --brand-border: rgba(249,115,22,0.3); --brand-text: #FDBA74; }
-  body { background: #0f172a; color: #f1f5f9; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-  .pulse { animation: pulse 2.6s ease-in-out infinite; }
-  .feature-item::before { content: "→"; color: var(--brand-text); margin-right: 10px; flex-shrink: 0; }
-  .feature-item { display: flex; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; color: #cbd5e1; }
-  .feature-item:last-child { border-bottom: none; }
+/* ── Suite Drum ───────────────────────────────────────── */
+.suite-drum-wrap {
+  height: 44px; overflow: hidden; display: inline-block; vertical-align: middle;
+  position: relative;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 78%, transparent 100%);
+  mask-image:         linear-gradient(to bottom, transparent 0%, #000 22%, #000 78%, transparent 100%);
+}
+.suite-drum { position: relative; transition: transform 0.52s cubic-bezier(0.4,0,0.2,1); will-change: transform; }
+.suite-face { display: block; height: 44px; line-height: 44px; white-space: nowrap;
+  font-family: 'Space Mono','Courier New',monospace; font-size: 28px; font-weight: 700; color: #F97316; }
+
+/* ── Suite Launcher Panel ─────────────────────────────── */
+#suiteLauncher {
+  background: rgba(15,17,26,0.97);
+  border-bottom: 1px solid rgba(249,115,22,0.18);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.suite-module-btn {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border-radius: 10px; border: 1px solid transparent;
+  background: rgba(255,255,255,0.03); cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  text-align: left; width: 100%;
+}
+.suite-module-btn:active { transform: scale(0.97); }
+.suite-module-btn.active { background: rgba(249,115,22,0.14); border-color: rgba(249,115,22,0.38); }
+.suite-module-btn:not(.active):hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.08); }
+.suite-module-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+/* ── Floating Labels ──────────────────────────────────── */
+.float-wrap { position: relative; }
+.float-input {
+  width: 100%; padding: 20px 12px 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px; color: #f1f5f9;
+  font-family: 'Space Mono',monospace; font-size: 14px;
+  transition: border-color 0.15s;
+  -webkit-appearance: none; appearance: none;
+}
+.float-input:focus { outline: none; border-color: #F97316; }
+.float-label {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  font-size: 14px; color: #64748b;
+  pointer-events: none; transition: all 0.15s ease;
+  font-family: 'Space Mono',monospace;
+}
+.float-label.active { top: 8px; transform: none; font-size: 10px; color: #F97316; }
+.float-input.has-value ~ .float-label,
+.float-input:focus ~ .float-label { top: 8px; transform: none; font-size: 10px; color: #F97316; }
+
+/* ── Amount Input (big) ───────────────────────────────── */
+.amount-input-wrap { position: relative; }
+.amount-prefix {
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  font-size: 28px; font-weight: 700; color: #F97316;
+  font-family: 'Space Mono',monospace; pointer-events: none;
+}
+#balanceInput {
+  width: 100%; padding: 16px 14px 16px 36px;
+  background: rgba(249,115,22,0.06);
+  border: 2px solid rgba(249,115,22,0.3);
+  border-radius: 14px; color: #f8fafc;
+  font-family: 'Space Mono',monospace; font-size: 32px; font-weight: 700;
+  -webkit-appearance: none; appearance: none;
+  transition: border-color 0.15s;
+}
+#balanceInput:focus { outline: none; border-color: #F97316; }
+#balanceInput::placeholder { color: rgba(249,115,22,0.3); }
+
+/* ── Loan Type Chips ──────────────────────────────────── */
+.type-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: 999px; font-size: 11px; font-weight: 700;
+  font-family: 'Space Mono',monospace; cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04); color: #94a3b8;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.type-chip.active {
+  background: rgba(249,115,22,0.2); border-color: rgba(249,115,22,0.5); color: #fdba74;
+}
+
+/* ── Strategy Toggle ──────────────────────────────────── */
+.strategy-btn {
+  flex: 1; padding: 10px 8px; border-radius: 10px; font-size: 11px; font-weight: 700;
+  font-family: 'Space Mono',monospace; cursor: pointer; text-align: center;
+  border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: #64748b;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.strategy-btn.active {
+  background: rgba(249,115,22,0.18); border-color: rgba(249,115,22,0.45); color: #fdba74;
+}
+
+/* ── Loan Cards ───────────────────────────────────────── */
+.loan-card {
+  padding: 14px; border-radius: 14px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  cursor: pointer; transition: background 0.12s, border-color 0.12s;
+  margin-bottom: 8px;
+}
+.loan-card:active { background: rgba(255,255,255,0.07); }
+.loan-card.promo-alert { border-color: rgba(249,115,22,0.4); background: rgba(249,115,22,0.05); }
+.loan-card.deleted { opacity: 0.4; }
+
+/* ── Progress bar ─────────────────────────────────────── */
+.progress-bg { height: 6px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 999px; transition: width 0.4s ease; }
+
+/* ── APR badge ────────────────────────────────────────── */
+.apr-badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 7px; border-radius: 999px; font-size: 10px; font-weight: 700;
+  font-family: 'Space Mono',monospace;
+}
+
+/* ── Settings rows ────────────────────────────────────── */
+.settings-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 14px; border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 6px;
+}
+
+/* ── Toast ────────────────────────────────────────────── */
+#toast {
+  position: fixed; bottom: calc(5rem + env(safe-area-inset-bottom,0px));
+  right: 1rem; z-index: 9999;
+  background: #1e293b; border: 1px solid rgba(249,115,22,0.3);
+  color: #f1f5f9; padding: 10px 16px; border-radius: 10px;
+  font-size: 12px; font-family: 'Space Mono',monospace;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+}
+#toast.hidden { opacity: 0; transform: translateY(8px); }
+
+/* ── Sheet & overlay ──────────────────────────────────── */
+#overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 40; }
+#sheet {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: #111827; border-radius: 20px 20px 0 0;
+  padding: 20px 16px calc(20px + env(safe-area-inset-bottom,0px));
+  max-height: 90vh; overflow-y: auto; z-index: 50;
+}
 </style>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#111827" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 </head>
-<body class="min-h-screen flex flex-col items-center justify-start px-5 pt-16 pb-12">
 
-  <div class="w-full max-w-sm">
+<body class="bg-gray-950 text-gray-100 min-h-screen flex flex-col" style="font-family:'Space Mono',monospace;touch-action:manipulation;overscroll-behavior:none;">
 
-    <a href="https://loca.n8.wtf" class="inline-flex items-center gap-2 text-xs text-slate-500 hover:text-slate-300 transition-colors mb-10" style="text-decoration:none">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-      LocaLedger Suite
-    </a>
+<!-- ═══════════════════════════════════════════════════ HEADER -->
+<header class="px-4 py-4 border-b border-gray-800 sticky top-0 bg-gray-900/80 backdrop-blur-sm z-20 pt-14 flex justify-between items-center relative">
 
-    <div class="flex items-center gap-4 mb-4">
-      <div class="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style="background:var(--brand-dim);border:1px solid var(--brand-border)">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8">
-          <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
-        </svg>
+  <button id="suiteLaunchBtn" onclick="toggleSuiteLauncher()" class="flex items-center gap-0 cursor-pointer select-none" style="background:none;border:none;padding:0" aria-label="Open LocaLedger Suite">
+    <svg width="40" height="44" viewBox="0 0 20 22" fill="none" style="flex-shrink:0;margin-right:8px">
+      <defs>
+        <filter id="hgR" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="hgY" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="hgI" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <line x1="4" y1="7.5" x2="4" y2="10"  stroke="#334155" stroke-width="1.5"/>
+      <line x1="4" y1="12"  x2="4" y2="14.5" stroke="#334155" stroke-width="1.5"/>
+      <circle cx="4" cy="4"  r="2.5" fill="#22C55E" filter="url(#hgR)"/>
+      <rect x="8.5" y="2.75"  width="9"  height="2.5" rx="1.25" fill="#334155"/>
+      <circle cx="4" cy="11" r="2.5" fill="#F43F5E" filter="url(#hgY)"/>
+      <rect x="8.5" y="9.75"  width="12" height="2.5" rx="1.25" fill="#334155"/>
+      <circle cx="4" cy="18" r="2.5" fill="#F97316" filter="url(#hgI)"/>
+      <rect x="8.5" y="16.75" width="7"  height="2.5" rx="1.25" fill="#334155"/>
+    </svg>
+
+    <span style="font-family:'Space Mono','Courier New',monospace;font-size:28px;font-weight:700;color:#F8FAFC;line-height:1">Loca</span>
+    <div class="suite-drum-wrap">
+      <div id="suiteDrum" class="suite-drum">
+        <span class="suite-face">Labor</span>
+        <span class="suite-face">Loss</span>
+        <span class="suite-face">Limit</span>
+        <span class="suite-face">Loan</span>
+        <span class="suite-face">Legacy</span>
+        <span class="suite-face">Liquid</span>
+        <span class="suite-face">Labor</span>
       </div>
-      <div>
-        <div class="text-2xl font-bold" style="color:var(--brand-text)">LocaLoan</div>
-        <div class="text-xs text-slate-400 mt-0.5">Loan Payoff Optimizer</div>
+    </div>
+    <svg id="suiteChevron" width="12" height="12" viewBox="0 0 12 12" fill="none" style="margin-left:2px;transition:transform 0.25s;flex-shrink:0">
+      <path d="M2.5 4.5L6 8l3.5-3.5" stroke="#F97316" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
+
+  <!-- Suite Launcher Panel -->
+  <div id="suiteLauncher" class="hidden absolute top-full left-0 right-0 z-50" style="border-top:1px solid rgba(249,115,22,0.12)">
+    <div class="px-4 pt-3 pb-4">
+      <div class="flex items-center justify-between mb-3">
+        <span style="font-family:'Space Mono',monospace;font-size:10px;font-weight:700;color:#475569;letter-spacing:0.1em;text-transform:uppercase">LocaLedger Suite</span>
+        <button onclick="closeSuiteLauncher()" style="color:#475569;font-size:18px;line-height:1;background:none;border:none;cursor:pointer;padding:2px 6px">×</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button id="suiteBtn-labor" class="suite-module-btn" onclick="switchSuiteModule('labor')">
+          <div class="suite-module-icon" style="background:rgba(99,102,241,0.18);border:1px solid rgba(99,102,241,0.35)">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6366F1" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+          </div>
+          <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;color:#f1f5f9;font-family:'Space Mono',monospace">LocaLabor</div><div style="font-size:10px;color:#818cf8;margin-top:1px">Income Tracking</div></div>
+          <span style="font-size:9px;font-weight:700;background:#6366F1;color:#fff;padding:2px 6px;border-radius:999px;letter-spacing:0.06em;flex-shrink:0">LIVE</span>
+        </button>
+        <button id="suiteBtn-loss" class="suite-module-btn" onclick="switchSuiteModule('loss')">
+          <div class="suite-module-icon" style="background:rgba(244,63,94,0.18);border:1px solid rgba(244,63,94,0.35)">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#F43F5E" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+          </div>
+          <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;color:#f1f5f9;font-family:'Space Mono',monospace">LocaLoss</div><div style="font-size:10px;color:#fb7185;margin-top:1px">Spending Tracker</div></div>
+          <span style="font-size:9px;font-weight:700;background:#F43F5E;color:#fff;padding:2px 6px;border-radius:999px;letter-spacing:0.06em;flex-shrink:0">LIVE</span>
+        </button>
+        <button id="suiteBtn-limit" class="suite-module-btn" onclick="switchSuiteModule('limit')">
+          <div class="suite-module-icon" style="background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.25)">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+          </div>
+          <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;color:#f1f5f9;font-family:'Space Mono',monospace">LocaLimit</div><div style="font-size:10px;color:#fbbf24;margin-top:1px">Budget Intel</div></div>
+          <span style="font-size:9px;font-weight:700;background:rgba(245,158,11,0.2);color:#fcd34d;padding:2px 6px;border-radius:999px;letter-spacing:0.06em;flex-shrink:0">SOON</span>
+        </button>
+        <button id="suiteBtn-loan" class="suite-module-btn active" onclick="switchSuiteModule('loan')">
+          <div class="suite-module-icon" style="background:rgba(249,115,22,0.18);border:1px solid rgba(249,115,22,0.35)">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#F97316" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+          </div>
+          <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;color:#f1f5f9;font-family:'Space Mono',monospace">LocaLoan</div><div style="font-size:10px;color:#fb923c;margin-top:1px">Loan Optimizer</div></div>
+          <span style="font-size:9px;font-weight:700;background:#F97316;color:#fff;padding:2px 6px;border-radius:999px;letter-spacing:0.06em;flex-shrink:0">LIVE</span>
+        </button>
+        <button id="suiteBtn-legacy" class="suite-module-btn" onclick="switchSuiteModule('legacy')">
+          <div class="suite-module-icon" style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25)">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          </div>
+          <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;color:#f1f5f9;font-family:'Space Mono',monospace">LocaLegacy</div><div style="font-size:10px;color:#34d399;margin-top:1px">Investment Tracker</div></div>
+          <span style="font-size:9px;font-weight:700;background:rgba(16,185,129,0.2);color:#6ee7b7;padding:2px 6px;border-radius:999px;letter-spacing:0.06em;flex-shrink:0">SOON</span>
+        </button>
+        <button id="suiteBtn-liquid" class="suite-module-btn" onclick="switchSuiteModule('liquid')">
+          <div class="suite-module-icon" style="background:rgba(6,182,212,0.12);border:1px solid rgba(6,182,212,0.25)">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#06B6D4" stroke-width="2"><path d="M12 2c0 0-8 6.5-8 12a8 8 0 0016 0c0-5.5-8-12-8-12z"/></svg>
+          </div>
+          <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;color:#f1f5f9;font-family:'Space Mono',monospace">LocaLiquid</div><div style="font-size:10px;color:#22d3ee;margin-top:1px">Net Worth Engine</div></div>
+          <span style="font-size:9px;font-weight:700;background:rgba(6,182,212,0.2);color:#67e8f9;padding:2px 6px;border-radius:999px;letter-spacing:0.06em;flex-shrink:0">SOON</span>
+        </button>
       </div>
     </div>
-
-    <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold tracking-widest uppercase mb-6 pulse" style="background:var(--brand-dim);color:var(--brand-text);border:1px solid var(--brand-border)">
-      <span>●</span> In Development
-    </div>
-
-    <p class="text-sm text-slate-300 leading-relaxed mb-8">
-      Model every debt and find the fastest, cheapest path to zero. Avalanche, snowball, promo APR countdowns — all in your browser with zero data leaving your device.
-    </p>
-
-    <div class="h-px mb-6" style="background:rgba(255,255,255,0.07)"></div>
-
-    <div class="text-xxs font-bold tracking-widest uppercase text-slate-500 mb-3" style="font-size:10px">Planned Features</div>
-    <div class="mb-8">
-      <div class="feature-item">Multi-loan dashboard (credit cards, auto, student, personal)</div>
-      <div class="feature-item">Avalanche strategy — highest APR attacked first</div>
-      <div class="feature-item">Snowball strategy — smallest balance first</div>
-      <div class="feature-item">Promo APR expiry countdown alerts</div>
-      <div class="feature-item">Custom extra-payment scenario modeling</div>
-      <div class="feature-item">Full amortization tables, exportable as CSV</div>
-      <div class="feature-item">Refi analyzer with break-even calculation</div>
-    </div>
-
-    <div class="p-3 rounded-xl text-xs text-slate-400 mb-8" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07)">
-      <span class="font-bold" style="color:var(--brand-text)">Offline-first.</span> Your financial data never leaves your device. No accounts required for the free tier.
-    </div>
-
-    <div class="text-center text-xs text-slate-600">
-      Part of the
-      <a href="https://loca.n8.wtf" style="color:var(--brand-text);text-decoration:none">LocaLedger Suite</a>
-      &nbsp;·&nbsp; AGPL-3.0
-    </div>
-
   </div>
+
+  <button data-tab="settings" class="tab p-2 text-gray-400" aria-label="Settings">
+    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+  </button>
+</header>
+
+<main id="app" class="flex-1 overflow-y-auto pb-40"></main>
+
+<!-- Debt Banner -->
+<div id="debtBanner" class="fixed bottom-16 inset-x-0 bg-gray-900 border-t border-gray-800 px-4 py-3">
+  <button id="debtBannerButton" class="w-full flex justify-between items-center" onclick="showStrategySheet()">
+    <div class="text-center flex-1">
+      <div class="flex items-center justify-center gap-2 flex-wrap">
+        <span id="strategyIndicator" class="text-xs font-bold" style="color:#F97316">▼</span>
+        <span id="debtBannerLabel" class="text-xs text-gray-400 uppercase">Total Debt</span>
+      </div>
+      <div id="debtBannerValue" class="text-xl font-bold pb-3" style="color:#fdba74">$0.00</div>
+    </div>
+    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+    </svg>
+  </button>
+</div>
+
+<!-- Bottom Nav -->
+<nav class="fixed bottom-0 inset-x-0 bg-gray-900 border-t border-gray-800 flex text-xs pb-2" id="bottomNav">
+  <button data-tab="dashboard" class="tab flex-1 py-3 text-center text-gray-400">
+    <div class="flex flex-col items-center gap-1">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+      <span>Dashboard</span>
+    </div>
+  </button>
+  <button data-tab="add" class="tab flex-1 py-3 text-center text-gray-400">
+    <div class="flex flex-col items-center gap-1">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
+      <span>Add</span>
+    </div>
+  </button>
+  <button data-tab="loans" class="tab flex-1 py-3 text-center text-gray-400">
+    <div class="flex flex-col items-center gap-1">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+      <span>Loans</span>
+    </div>
+  </button>
+</nav>
+
+<div id="toast" class="hidden"></div>
+<div id="overlay" class="hidden" onclick="closeSheet()"></div>
+<div id="sheet" class="hidden"></div>
+
+<script src="offline-charts.js"></script>
+<script>
+/* ════════════════════════════════════════════════════════════
+   LOCALOAN — Loan Payoff Optimizer
+   LocaLedger Suite · Orange #F97316 · localStorage: locaLoanData
+════════════════════════════════════════════════════════════ */
+
+const DATA_KEY    = "locaLoanData";
+const META_KEY    = "locaLoanMeta";
+const APP_VERSION = "1.0.0";
+const ORANGE      = "#F97316";
+
+const LOAN_TYPES = [
+  { key: "credit_card", label: "Credit Card", color: "#F43F5E" },
+  { key: "auto",        label: "Auto",         color: "#F97316" },
+  { key: "student",     label: "Student",      color: "#8B5CF6" },
+  { key: "personal",    label: "Personal",     color: "#06B6D4" },
+  { key: "mortgage",    label: "Mortgage",     color: "#10B981" },
+  { key: "other",       label: "Other",        color: "#64748B" },
+];
+
+/* ── Global State ─────────────────────────────────────── */
+let activeTab       = "dashboard";
+let editModeLoan    = null;
+let savedFormData   = null;
+let skipNextFormSave = false;
+let _selectedType   = "credit_card";
+let _hasPromo       = false;
+
+/* ── Storage ──────────────────────────────────────────── */
+function initStorage() {
+  if (!localStorage.getItem(DATA_KEY)) {
+    localStorage.setItem(DATA_KEY, JSON.stringify({
+      loans: [],
+      strategies: { active: "avalanche", extraMonthly: 0 },
+      version: 1
+    }));
+  }
+  if (!localStorage.getItem(META_KEY)) {
+    localStorage.setItem(META_KEY, JSON.stringify({ userId: "user1", nextId: 1 }));
+  }
+}
+initStorage();
+
+function loadData()  { return JSON.parse(localStorage.getItem(DATA_KEY)); }
+function saveData(d) { localStorage.setItem(DATA_KEY, JSON.stringify(d)); }
+function loadMeta()  { return JSON.parse(localStorage.getItem(META_KEY)); }
+function saveMeta(m) { localStorage.setItem(META_KEY, JSON.stringify(m)); }
+
+function generateId() {
+  const m = loadMeta();
+  const id = `loan_${m.userId}_${m.nextId}`;
+  m.nextId++;
+  saveMeta(m);
+  return id;
+}
+
+/* ── Helpers ──────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function money(v) {
+  return `$${Number(v||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+}
+
+function pct(v) { return `${Number(v||0).toFixed(2)}%`; }
+
+function showToast(msg, ms = 2200) {
+  const t = $('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(showToast._tid);
+  showToast._tid = setTimeout(() => t.classList.add('hidden'), ms);
+}
+
+function hexToRgba(hex, alpha) {
+  if (!hex) return `rgba(100,116,139,${alpha})`;
+  const h = hex.replace('#','');
+  const r = parseInt(h.substring(0,2),16);
+  const g = parseInt(h.substring(2,4),16);
+  const b = parseInt(h.substring(4,6),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function monthsLabel(n) {
+  if (!n || n <= 0) return '0 months';
+  const yr = Math.floor(n / 12);
+  const mo = n % 12;
+  if (yr === 0) return `${mo} mo`;
+  if (mo === 0) return `${yr} yr`;
+  return `${yr} yr ${mo} mo`;
+}
+
+function payoffDateStr(months) {
+  if (!months || months <= 0) return 'Paid off';
+  const d = new Date();
+  d.setMonth(d.getMonth() + months);
+  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
+function getLoanType(key) {
+  return LOAN_TYPES.find(t => t.key === key) || LOAN_TYPES[LOAN_TYPES.length - 1];
+}
+
+function promoAlertDays(loan) {
+  if (!loan.promoAprEnds) return null;
+  const end  = new Date(loan.promoAprEnds + 'T00:00:00');
+  const today = new Date();
+  const diff  = Math.ceil((end - today) / 86400000);
+  return diff >= 0 ? diff : null;
+}
+
+function openSheet()  { $('sheet').classList.remove('hidden'); $('overlay').classList.remove('hidden'); }
+function closeSheet() { $('sheet').classList.add('hidden');    $('overlay').classList.add('hidden');    }
+
+function updateBannerTotal() {
+  const data  = loadData();
+  const loans = (data.loans || []).filter(l => !l.deleted);
+  const total = loans.reduce((s,l) => s + (parseFloat(l.balance)||0), 0);
+  const el = $('debtBannerValue');
+  if (el) el.textContent = money(total);
+  const strat = (data.strategies && data.strategies.active) || 'avalanche';
+  const lbl = $('debtBannerLabel');
+  if (lbl) lbl.textContent = strat === 'avalanche' ? 'Total Debt · Avalanche' : 'Total Debt · Snowball';
+}
+
+function updateLabel(labelId) {
+  const label = $(labelId);
+  if (!label) return;
+  const inputId = labelId.replace('Label','Input');
+  const input   = $(inputId);
+  if (!input) return;
+  const hasVal = input.value && input.value.trim() !== '';
+  label.classList.toggle('active', hasVal);
+  input.classList.toggle('has-value', hasVal);
+}
+
+/* ════════════════════════════════════════════════════════
+   AMORTIZATION MATH
+════════════════════════════════════════════════════════ */
+
+// Calculates months to payoff a single loan at a given payment
+function calcPayoffMonths(balance, aprPct, payment, promoApr, promoAprEnds) {
+  if (balance <= 0) return 0;
+  let bal = balance;
+  const today = new Date();
+  let month = 0;
+  while (bal > 0.01 && month < 600) {
+    month++;
+    const currentDate = new Date(today.getFullYear(), today.getMonth() + month - 1, 1);
+    const apr = _effectiveApr({ apr: aprPct, promoApr, promoAprEnds }, currentDate);
+    const rate = (apr / 100) / 12;
+    const interest = bal * rate;
+    const pmt = Math.max(payment, interest + 0.01);
+    bal = Math.max(0, bal - (pmt - interest));
+  }
+  return month;
+}
+
+// Full amortization table for a single loan
+function buildAmortTable(loan) {
+  const rows = [];
+  let bal = loan.balance;
+  const today = new Date();
+  let month = 0;
+  while (bal > 0.005 && month < 600) {
+    month++;
+    const currentDate = new Date(today.getFullYear(), today.getMonth() + month - 1, 1);
+    const apr = _effectiveApr(loan, currentDate);
+    const rate = (apr / 100) / 12;
+    const interest = bal * rate;
+    const minPmt = Math.max(loan.minimumPayment || 25, interest + 0.01);
+    const pmt = Math.min(minPmt, bal + interest);
+    const principal = pmt - interest;
+    bal = Math.max(0, bal - principal);
+    rows.push({
+      month,
+      date: currentDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      payment: pmt,
+      principal,
+      interest,
+      balance: bal,
+      apr,
+    });
+  }
+  return rows;
+}
+
+// Multi-loan strategy simulation
+function simulateStrategy(loans, extra, strategy) {
+  if (!loans.length) return { months: 0, totalInterest: 0, payoffByLoanId: {} };
+  const sorted = strategy === 'avalanche'
+    ? [...loans].sort((a,b) => b.apr - a.apr)
+    : [...loans].sort((a,b) => a.balance - b.balance);
+
+  const balances = {};
+  loans.forEach(l => balances[l.id] = parseFloat(l.balance) || 0);
+  let totalInterest = 0;
+  const payoffByLoanId = {};
+  let month = 0;
+  const today = new Date();
+
+  while (Object.values(balances).some(b => b > 0.01) && month < 600) {
+    month++;
+    const currentDate = new Date(today.getFullYear(), today.getMonth() + month - 1, 1);
+
+    // Step 1: accrue interest on all active loans
+    loans.forEach(l => {
+      if (balances[l.id] <= 0) return;
+      const apr = _effectiveApr(l, currentDate);
+      const interest = balances[l.id] * (apr / 100 / 12);
+      totalInterest += interest;
+      balances[l.id] += interest;
+    });
+
+    // Step 2: apply minimums to all loans, collect rollover
+    let rollover = parseFloat(extra) || 0;
+    loans.forEach(l => {
+      if (balances[l.id] <= 0) return;
+      const pmt = Math.min(parseFloat(l.minimumPayment) || 25, balances[l.id]);
+      balances[l.id] -= pmt;
+      if (balances[l.id] <= 0.005) {
+        rollover += Math.max(0, -balances[l.id]);
+        balances[l.id] = 0;
+        if (!payoffByLoanId[l.id]) payoffByLoanId[l.id] = month;
+      }
+    });
+
+    // Step 3: apply extra + rollover to target loan in strategy order
+    for (const l of sorted) {
+      if (balances[l.id] > 0.01) {
+        const pmt = Math.min(rollover, balances[l.id]);
+        if (pmt > 0) {
+          balances[l.id] -= pmt;
+          rollover -= pmt;
+          if (balances[l.id] <= 0.005) {
+            rollover += Math.max(0, -balances[l.id]);
+            balances[l.id] = 0;
+            if (!payoffByLoanId[l.id]) payoffByLoanId[l.id] = month;
+          }
+        }
+        if (rollover <= 0) break;
+      }
+    }
+  }
+
+  return { months: month, totalInterest, payoffByLoanId };
+}
+
+function _effectiveApr(loan, currentDate) {
+  if (loan.promoApr != null && loan.promoApr >= 0 && loan.promoAprEnds) {
+    const end = new Date(loan.promoAprEnds + 'T00:00:00');
+    if (currentDate <= end) return parseFloat(loan.promoApr) || 0;
+  }
+  return parseFloat(loan.apr) || 0;
+}
+
+/* ════════════════════════════════════════════════════════
+   TAB SWITCHING
+════════════════════════════════════════════════════════ */
+function switchTab(tab) {
+  if (tab !== 'add' && !skipNextFormSave && activeTab === 'add') {
+    savedFormData = readFormData();
+  }
+  skipNextFormSave = false;
+  activeTab = tab;
+
+  document.querySelectorAll('.tab[data-tab]').forEach(btn => {
+    const active = btn.dataset.tab === tab;
+    btn.style.color = active ? ORANGE : '';
+  });
+
+  if      (tab === 'dashboard') renderDashboard();
+  else if (tab === 'add')       renderAdd(editModeLoan);
+  else if (tab === 'loans')     renderLoans();
+  else if (tab === 'settings')  renderSettings();
+}
+
+/* ════════════════════════════════════════════════════════
+   DASHBOARD
+════════════════════════════════════════════════════════ */
+function renderDashboard() {
+  const data     = loadData();
+  const loans    = (data.loans || []).filter(l => !l.deleted && l.balance > 0);
+  const strategy = (data.strategies && data.strategies.active) || 'avalanche';
+  const extra    = parseFloat((data.strategies && data.strategies.extraMonthly) || 0);
+
+  const totalDebt     = loans.reduce((s,l) => s + (parseFloat(l.balance)||0), 0);
+  const totalMinPmt   = loans.reduce((s,l) => s + (parseFloat(l.minimumPayment)||0), 0);
+  const loanCount     = loans.length;
+
+  let simResult = null;
+  if (loans.length) {
+    simResult = simulateStrategy(loans, extra, strategy);
+  }
+
+  // Promo alerts (within 60 days)
+  const promoAlerts = loans
+    .map(l => ({ loan: l, days: promoAlertDays(l) }))
+    .filter(x => x.days !== null && x.days <= 60)
+    .sort((a,b) => a.days - b.days);
+
+  const chartCtrl = typeof renderChartControls === 'function' ? renderChartControls() : '';
+
+  $('app').innerHTML = `
+    <div class="px-4 py-4 space-y-4">
+
+      <!-- Stats row -->
+      <div class="grid grid-cols-3 gap-2">
+        <div class="rounded-xl p-3 text-center" style="background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.2)">
+          <div class="text-xs text-gray-500 mb-1">Total Debt</div>
+          <div class="text-base font-bold" style="color:#fdba74">${money(totalDebt)}</div>
+        </div>
+        <div class="rounded-xl p-3 text-center" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07)">
+          <div class="text-xs text-gray-500 mb-1">Min/Month</div>
+          <div class="text-base font-bold text-gray-200">${money(totalMinPmt)}</div>
+        </div>
+        <div class="rounded-xl p-3 text-center" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07)">
+          <div class="text-xs text-gray-500 mb-1">Loans</div>
+          <div class="text-base font-bold text-gray-200">${loanCount}</div>
+        </div>
+      </div>
+
+      ${promoAlerts.length ? `
+      <!-- Promo APR Alerts -->
+      <div class="rounded-xl p-4" style="background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.35)">
+        <div class="text-xs font-bold mb-2 flex items-center gap-2" style="color:#fdba74">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F97316" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          PROMO APR EXPIRING SOON
+        </div>
+        ${promoAlerts.map(({loan, days}) => `
+          <div class="flex items-center justify-between py-1.5">
+            <span class="text-sm text-gray-300 truncate" style="max-width:60%">${loan.label}</span>
+            <span class="text-xs font-bold ${days <= 14 ? 'text-red-400' : 'text-orange-400'}">${days === 0 ? 'EXPIRES TODAY' : `${days} day${days===1?'':'s'} left`} → ${pct(loan.apr)} APR</span>
+          </div>`).join('')}
+      </div>` : ''}
+
+      <!-- Strategy Panel -->
+      ${loans.length ? `
+      <div class="rounded-xl p-4" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07)">
+        <div class="text-xs text-gray-500 uppercase tracking-widest mb-3" style="font-family:'Space Mono',monospace;letter-spacing:0.1em">Payoff Strategy</div>
+        <div class="flex gap-2 mb-3">
+          <button class="strategy-btn ${strategy==='avalanche'?'active':''}" onclick="setStrategy('avalanche')" data-strategy="avalanche">
+            ⚡ Avalanche<br><span style="font-size:9px;opacity:0.7">Highest APR first</span>
+          </button>
+          <button class="strategy-btn ${strategy==='snowball'?'active':''}" onclick="setStrategy('snowball')" data-strategy="snowball">
+            ❄️ Snowball<br><span style="font-size:9px;opacity:0.7">Smallest balance first</span>
+          </button>
+        </div>
+        <div class="flex items-center gap-3 mb-2">
+          <span class="text-xs text-gray-400" style="flex-shrink:0">Extra/mo:</span>
+          <div class="flex-1 relative">
+            <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#F97316;font-weight:700;font-size:14px;font-family:'Space Mono',monospace">$</span>
+            <input id="extraInput" type="number" inputmode="decimal" min="0" step="10"
+              value="${extra}"
+              oninput="setExtraMonthly(this.value)"
+              class="w-full text-sm text-gray-100 rounded-lg border"
+              style="padding:8px 10px 8px 22px;background:rgba(249,115,22,0.06);border-color:rgba(249,115,22,0.25);font-family:'Space Mono',monospace" />
+          </div>
+        </div>
+        ${simResult ? `
+        <div class="mt-3 p-3 rounded-lg" style="background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.15)">
+          <div class="flex justify-between text-sm mb-1">
+            <span class="text-gray-400">Debt-free</span>
+            <span class="font-bold" style="color:#fdba74">${payoffDateStr(simResult.months)} <span class="text-xs text-gray-500">(${monthsLabel(simResult.months)})</span></span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-gray-400">Total interest</span>
+            <span class="font-bold text-gray-300">${money(simResult.totalInterest)}</span>
+          </div>
+          ${extra > 0 ? (() => {
+            const minResult = simulateStrategy(loans, 0, strategy);
+            const saved = minResult.totalInterest - simResult.totalInterest;
+            const mosSaved = minResult.months - simResult.months;
+            return saved > 0 ? `
+            <div class="flex justify-between text-xs mt-2 pt-2 border-t border-gray-800">
+              <span class="text-gray-500">vs. minimums only</span>
+              <span style="color:#34d399">Save ${money(saved)}${mosSaved > 0 ? ` · ${monthsLabel(mosSaved)} sooner` : ''}</span>
+            </div>` : '';
+          })() : ''}
+        </div>` : ''}
+      </div>` : ''}
+
+      <!-- Charts -->
+      ${loans.length ? `
+      <div class="rounded-xl p-4" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07)">
+        <div class="text-xs text-gray-500 uppercase tracking-widest mb-3" style="font-family:'Space Mono',monospace;letter-spacing:0.1em">Payoff Charts</div>
+        ${chartCtrl}
+        <div id="loanTimelineChart"></div>
+        <div id="loanBreakdownChart" style="display:none"></div>
+        <div id="loanCompareChart"   style="display:none"></div>
+      </div>` : ''}
+
+      <!-- No loans CTA -->
+      ${loanCount === 0 ? `
+      <div class="rounded-xl p-6 text-center" style="background:rgba(249,115,22,0.05);border:1px dashed rgba(249,115,22,0.2)">
+        <div class="text-3xl mb-2">💳</div>
+        <div class="text-sm text-gray-400 mb-4">No loans tracked yet.<br>Add your first loan to see your payoff plan.</div>
+        <button onclick="switchTab('add')" class="px-5 py-2.5 rounded-xl text-sm font-bold text-white" style="background:${ORANGE};font-family:'Space Mono',monospace">Add first loan</button>
+      </div>` : ''}
+
+    </div>`;
+
+  updateBannerTotal();
+  if (typeof renderAllCharts === 'function') setTimeout(renderAllCharts, 30);
+}
+
+/* ════════════════════════════════════════════════════════
+   STRATEGY CONTROLS
+════════════════════════════════════════════════════════ */
+function setStrategy(s) {
+  const data = loadData();
+  if (!data.strategies) data.strategies = {};
+  data.strategies.active = s;
+  saveData(data);
+  // Update buttons
+  document.querySelectorAll('.strategy-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.strategy === s);
+  });
+  // Refresh strategy summary
+  if (activeTab === 'dashboard') renderDashboard();
+  else if (activeTab === 'loans') renderLoans();
+  updateBannerTotal();
+}
+
+function setExtraMonthly(val) {
+  const data = loadData();
+  if (!data.strategies) data.strategies = {};
+  data.strategies.extraMonthly = parseFloat(val) || 0;
+  saveData(data);
+  // Debounced re-render
+  clearTimeout(setExtraMonthly._tid);
+  setExtraMonthly._tid = setTimeout(() => {
+    if (activeTab === 'dashboard') renderDashboard();
+    else if (activeTab === 'loans') renderLoans();
+    updateBannerTotal();
+  }, 400);
+}
+
+/* ════════════════════════════════════════════════════════
+   ADD / EDIT LOAN FORM
+════════════════════════════════════════════════════════ */
+function renderAdd(existing) {
+  const isEdit = !!existing;
+  const pf = isEdit ? existing : (savedFormData || {});
+
+  const fLabel   = pf.label   || '';
+  const fType    = pf.type    || _selectedType || 'credit_card';
+  const fBalance = isEdit ? (existing.balance || '') : (pf.balance || '');
+  const fApr     = isEdit ? (existing.apr    || '') : (pf.apr     || '');
+  const fMinPmt  = isEdit ? (existing.minimumPayment || '') : (pf.minimumPayment || '');
+  const fOpened  = isEdit ? (existing.openedDate || '') : (pf.openedDate || todayISO());
+  const fHasPromo = isEdit ? !!(existing.promoApr != null && existing.promoAprEnds) : !!pf.hasPromo;
+  const fPromoApr = isEdit ? (existing.promoApr ?? '') : (pf.promoApr || '');
+  const fPromoEnd = isEdit ? (existing.promoAprEnds || '') : (pf.promoAprEnds || '');
+  const fOrig    = isEdit ? (existing.originalBalance || existing.balance || '') : (pf.originalBalance || '');
+
+  if (!isEdit) {
+    _selectedType = fType;
+    _hasPromo = fHasPromo;
+  }
+
+  const typeChips = LOAN_TYPES.map(t =>
+    `<button type="button" class="type-chip ${fType === t.key ? 'active' : ''}"
+      onclick="selectLoanType('${t.key}')" data-type="${t.key}"
+      style="${fType === t.key ? `background:${hexToRgba(t.color,0.2)};border-color:${hexToRgba(t.color,0.5)};color:${t.color}` : ''}">
+      ${t.label}
+    </button>`
+  ).join('');
+
+  $('app').innerHTML = `
+    <div class="px-4 py-4">
+      <div class="text-xs text-gray-500 uppercase tracking-widest mb-4" style="font-family:'Space Mono',monospace;letter-spacing:0.1em">
+        ${isEdit ? 'Edit Loan' : 'Add Loan'}
+      </div>
+
+      <form id="loanForm" onsubmit="saveLoan(event)">
+
+        <!-- Loan Type -->
+        <div class="mb-4">
+          <div class="text-xs text-gray-500 mb-2">Type</div>
+          <div class="flex flex-wrap gap-2" id="typeChipsContainer">
+            ${typeChips}
+          </div>
+        </div>
+
+        <!-- Label -->
+        <div class="float-wrap mb-3">
+          <input id="labelInput" type="text" class="float-input ${fLabel ? 'has-value' : ''}"
+            placeholder="" value="${fLabel}" oninput="updateLabel('labelLabel')" autocomplete="off" maxlength="40" />
+          <label id="labelLabel" class="float-label ${fLabel ? 'active' : ''}">Loan Name / Label</label>
+        </div>
+
+        <!-- Balance (big) -->
+        <div class="amount-input-wrap mb-4">
+          <span class="amount-prefix">$</span>
+          <input id="balanceInput" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00"
+            value="${fBalance}" autocomplete="off" required />
+        </div>
+
+        <!-- Original balance (for progress tracking) -->
+        <div class="float-wrap mb-3">
+          <input id="origBalInput" type="number" inputmode="decimal" step="0.01" min="0"
+            class="float-input ${fOrig ? 'has-value' : ''}"
+            placeholder="" value="${fOrig}" oninput="updateLabel('origBalLabel')" />
+          <label id="origBalLabel" class="float-label ${fOrig ? 'active' : ''}">Original Balance (for payoff progress)</label>
+        </div>
+
+        <!-- APR row -->
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div class="float-wrap">
+            <input id="aprInput" type="number" inputmode="decimal" step="0.01" min="0" max="200"
+              class="float-input ${fApr ? 'has-value' : ''}"
+              placeholder="" value="${fApr}" oninput="updateLabel('aprLabel')" required />
+            <label id="aprLabel" class="float-label ${fApr ? 'active' : ''}">APR (%)</label>
+          </div>
+          <div class="float-wrap">
+            <input id="minPmtInput" type="number" inputmode="decimal" step="0.01" min="0"
+              class="float-input ${fMinPmt ? 'has-value' : ''}"
+              placeholder="" value="${fMinPmt}" oninput="updateLabel('minPmtLabel')" required />
+            <label id="minPmtLabel" class="float-label ${fMinPmt ? 'active' : ''}">Min. Payment ($)</label>
+          </div>
+        </div>
+
+        <!-- Opened date -->
+        <div class="float-wrap mb-4">
+          <input id="openedInput" type="date" class="float-input has-value" value="${fOpened}" onchange="updateLabel('openedLabel')" />
+          <label id="openedLabel" class="float-label active">Opened / Start Date</label>
+        </div>
+
+        <!-- Promo APR toggle -->
+        <div class="rounded-xl p-3 mb-4" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08)">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <div class="text-sm text-gray-300">Promotional APR</div>
+              <div class="text-xs text-gray-600">0% or reduced rate for a limited time</div>
+            </div>
+            <button type="button" onclick="togglePromo()"
+              class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
+              style="background:${_hasPromo ? ORANGE : '#374151'}" id="promoToggleBtn">
+              <span class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
+                style="transform:translateX(${_hasPromo ? '20px' : '4px'})"></span>
+            </button>
+          </div>
+          <div id="promoFields" class="${_hasPromo ? '' : 'hidden'}">
+            <div class="grid grid-cols-2 gap-3 mt-2">
+              <div class="float-wrap">
+                <input id="promoAprInput" type="number" inputmode="decimal" step="0.01" min="0" max="200"
+                  class="float-input ${fPromoApr !== '' ? 'has-value' : ''}"
+                  placeholder="" value="${fPromoApr}" oninput="updateLabel('promoAprLabel')" />
+                <label id="promoAprLabel" class="float-label ${fPromoApr !== '' ? 'active' : ''}">Promo APR (%)</label>
+              </div>
+              <div class="float-wrap">
+                <input id="promoEndInput" type="date" class="float-input ${fPromoEnd ? 'has-value' : ''}"
+                  value="${fPromoEnd}" onchange="updateLabel('promoEndLabel')" />
+                <label id="promoEndLabel" class="float-label ${fPromoEnd ? 'active' : ''}">Promo Ends</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" class="w-full py-3 rounded-xl text-sm font-bold text-white mb-3"
+          style="background:${ORANGE};font-family:'Space Mono',monospace">
+          ${isEdit ? 'Save Changes' : 'Add Loan'}
+        </button>
+
+        ${isEdit ? `
+        <button type="button" onclick="cancelEdit()"
+          class="w-full py-3 rounded-xl text-sm font-bold text-gray-400"
+          style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);font-family:'Space Mono',monospace">
+          Cancel
+        </button>` : ''}
+
+      </form>
+    </div>`;
+
+  setTimeout(() => { const b = $('balanceInput'); if (b && !isEdit) b.focus(); }, 80);
+}
+
+function selectLoanType(key) {
+  _selectedType = key;
+  const t = getLoanType(key);
+  document.querySelectorAll('.type-chip').forEach(chip => {
+    const isActive = chip.dataset.type === key;
+    chip.classList.toggle('active', isActive);
+    chip.style.background  = isActive ? hexToRgba(t.color, 0.2) : '';
+    chip.style.borderColor = isActive ? hexToRgba(t.color, 0.5) : '';
+    chip.style.color       = isActive ? t.color : '';
+  });
+}
+
+function togglePromo() {
+  _hasPromo = !_hasPromo;
+  const btn = $('promoToggleBtn');
+  const fields = $('promoFields');
+  if (btn) {
+    btn.style.background = _hasPromo ? ORANGE : '#374151';
+    btn.querySelector('span').style.transform = `translateX(${_hasPromo ? '20px' : '4px'})`;
+  }
+  if (fields) fields.classList.toggle('hidden', !_hasPromo);
+}
+
+function readFormData() {
+  const balance = $('balanceInput');
+  if (!balance) return null;
+  return {
+    label:           $('labelInput')?.value.trim() || '',
+    type:            _selectedType || 'credit_card',
+    balance:         parseFloat($('balanceInput')?.value) || 0,
+    originalBalance: parseFloat($('origBalInput')?.value) || 0,
+    apr:             parseFloat($('aprInput')?.value) || 0,
+    minimumPayment:  parseFloat($('minPmtInput')?.value) || 0,
+    openedDate:      $('openedInput')?.value || todayISO(),
+    hasPromo:        _hasPromo,
+    promoApr:        _hasPromo ? (parseFloat($('promoAprInput')?.value) ?? 0) : null,
+    promoAprEnds:    _hasPromo ? ($('promoEndInput')?.value || '') : '',
+  };
+}
+
+function saveLoan(e) {
+  e.preventDefault();
+  const fd = readFormData();
+  if (!fd) return;
+  if (!fd.label) { showToast('Enter a loan name'); return; }
+  if (!fd.balance || fd.balance <= 0) { showToast('Enter a balance'); return; }
+  if (!fd.apr && fd.apr !== 0) { showToast('Enter an APR'); return; }
+  if (!fd.minimumPayment || fd.minimumPayment <= 0) { showToast('Enter a minimum payment'); return; }
+
+  const data = loadData();
+  const now  = Date.now();
+
+  if (editModeLoan) {
+    const idx = data.loans.findIndex(x => x.id === editModeLoan.id && x.createdAt === editModeLoan.createdAt);
+    if (idx >= 0) {
+      data.loans[idx] = {
+        ...data.loans[idx],
+        label:           fd.label,
+        type:            fd.type,
+        balance:         fd.balance,
+        originalBalance: fd.originalBalance || fd.balance,
+        apr:             fd.apr,
+        minimumPayment:  fd.minimumPayment,
+        openedDate:      fd.openedDate,
+        promoApr:        fd.promoApr,
+        promoAprEnds:    fd.promoAprEnds,
+        updatedAt:       now,
+      };
+    }
+    editModeLoan = null;
+    showToast('Loan updated');
+  } else {
+    const loan = {
+      id:              generateId(),
+      label:           fd.label,
+      type:            fd.type,
+      balance:         fd.balance,
+      originalBalance: fd.originalBalance || fd.balance,
+      apr:             fd.apr,
+      minimumPayment:  fd.minimumPayment,
+      openedDate:      fd.openedDate,
+      promoApr:        fd.promoApr,
+      promoAprEnds:    fd.promoAprEnds,
+      deleted:         false,
+      createdAt:       now,
+      updatedAt:       now,
+    };
+    data.loans.push(loan);
+    showToast('Loan added');
+  }
+
+  saveData(data);
+  savedFormData    = null;
+  skipNextFormSave = true;
+  _hasPromo        = false;
+  switchTab('loans');
+}
+
+function cancelEdit() {
+  editModeLoan = null;
+  switchTab('loans');
+}
+
+/* ════════════════════════════════════════════════════════
+   LOANS TAB
+════════════════════════════════════════════════════════ */
+function renderLoans() {
+  const data     = loadData();
+  const all      = data.loans || [];
+  const strategy = (data.strategies && data.strategies.active) || 'avalanche';
+  const extra    = parseFloat((data.strategies && data.strategies.extraMonthly) || 0);
+
+  const active  = all.filter(l => !l.deleted && (parseFloat(l.balance)||0) > 0);
+  const paid    = all.filter(l => !l.deleted && (parseFloat(l.balance)||0) <= 0);
+  const deleted = all.filter(l => l.deleted);
+
+  // Sort by strategy order
+  const sorted = strategy === 'avalanche'
+    ? [...active].sort((a,b) => b.apr - a.apr)
+    : [...active].sort((a,b) => a.balance - b.balance);
+
+  // Simulate to get payoff months per loan
+  let simResult = null;
+  if (active.length) {
+    simResult = simulateStrategy(active, extra, strategy);
+  }
+
+  let html = `
+    <div class="px-4 pt-4 pb-2">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-xs text-gray-500">${active.length} active loan${active.length === 1 ? '' : 's'}</span>
+        <button onclick="switchTab('add')" class="text-xs font-bold px-3 py-1.5 rounded-lg"
+          style="background:rgba(249,115,22,0.15);color:#fdba74;border:1px solid rgba(249,115,22,0.25);font-family:'Space Mono',monospace">+ Add</button>
+      </div>`;
+
+  if (active.length === 0) {
+    html += `<div class="text-center py-12">
+      <div class="text-3xl mb-2">💳</div>
+      <div class="text-sm text-gray-500">No active loans.</div>
+      <button onclick="switchTab('add')" class="mt-4 px-4 py-2 rounded-xl text-xs font-bold text-white" style="background:${ORANGE};font-family:'Space Mono',monospace">Add one now</button>
+    </div>`;
+  } else {
+    sorted.forEach((loan, idx) => {
+      const t          = getLoanType(loan.type || 'other');
+      const days       = promoAlertDays(loan);
+      const hasAlert   = days !== null && days <= 60;
+      const payoffMo   = simResult && simResult.payoffByLoanId[loan.id];
+      const origBal    = parseFloat(loan.originalBalance) || parseFloat(loan.balance);
+      const progressPct = origBal > 0 ? Math.min(100, ((origBal - loan.balance) / origBal) * 100) : 0;
+      const stratOrder = idx + 1; // 1 = first target of extra payment
+
+      html += `
+        <div class="loan-card ${hasAlert ? 'promo-alert' : ''}" onclick="showLoanDetail('${loan.id}',${loan.createdAt})">
+          <div class="flex items-start justify-between mb-2">
+            <div class="flex items-center gap-2 flex-1 min-w-0">
+              ${stratOrder === 1 ? `<span class="text-xs font-bold px-1.5 py-0.5 rounded flex-shrink-0" style="background:rgba(249,115,22,0.2);color:#fdba74;font-family:'Space Mono',monospace">TARGET</span>` : `<span class="text-xs text-gray-600 flex-shrink-0">#${stratOrder}</span>`}
+              <span class="text-sm font-bold text-gray-100 truncate">${loan.label}</span>
+            </div>
+            <div class="text-right flex-shrink-0 ml-2">
+              <div class="text-base font-bold" style="color:#f1f5f9">${money(loan.balance)}</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 mb-2 flex-wrap">
+            <span class="apr-badge" style="background:${hexToRgba(t.color,0.15)};color:${t.color};border:1px solid ${hexToRgba(t.color,0.3)}">${t.label}</span>
+            ${loan.promoAprEnds && days !== null ? `<span class="apr-badge" style="background:rgba(249,115,22,0.15);color:#fdba74;border:1px solid rgba(249,115,22,0.3)">${pct(loan.promoApr)} → ${pct(loan.apr)}</span>` : `<span class="apr-badge" style="background:rgba(255,255,255,0.05);color:#94a3b8;border:1px solid rgba(255,255,255,0.08)">${pct(loan.apr)} APR</span>`}
+            <span class="text-xs text-gray-500">Min ${money(loan.minimumPayment)}/mo</span>
+          </div>
+          ${progressPct > 0 ? `
+          <div class="mb-2">
+            <div class="flex justify-between text-xs text-gray-600 mb-1">
+              <span>${progressPct.toFixed(0)}% paid off</span>
+              ${payoffMo ? `<span style="color:#fdba74">${payoffDateStr(payoffMo)}</span>` : ''}
+            </div>
+            <div class="progress-bg"><div class="progress-fill" style="width:${progressPct}%;background:${t.color}"></div></div>
+          </div>` : payoffMo ? `<div class="text-xs text-gray-500 mb-1">Payoff: <span style="color:#fdba74">${payoffDateStr(payoffMo)}</span></div>` : ''}
+          ${hasAlert ? `<div class="text-xs mt-1" style="color:#fdba74">⚠ Promo APR expires in ${days} day${days===1?'':'s'}</div>` : ''}
+        </div>`;
+    });
+
+    if (paid.length) {
+      html += `<div class="text-xs text-gray-600 uppercase tracking-widest mt-4 mb-2" style="font-family:'Space Mono',monospace">Paid Off</div>`;
+      paid.forEach(loan => {
+        const t = getLoanType(loan.type || 'other');
+        html += `
+          <div class="loan-card" style="opacity:0.5" onclick="showLoanDetail('${loan.id}',${loan.createdAt})">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold px-1.5 py-0.5 rounded" style="background:rgba(16,185,129,0.2);color:#34d399">✓ PAID</span>
+              <span class="text-sm text-gray-400 truncate">${loan.label}</span>
+              <span class="apr-badge ml-auto" style="background:${hexToRgba(t.color,0.1)};color:${t.color}">${t.label}</span>
+            </div>
+          </div>`;
+      });
+    }
+  }
+
+  html += '</div>';
+  $('app').innerHTML = html;
+  updateBannerTotal();
+}
+
+/* ════════════════════════════════════════════════════════
+   LOAN DETAIL + AMORTIZATION
+════════════════════════════════════════════════════════ */
+function showLoanDetail(id, createdAt) {
+  const data = loadData();
+  const loan = data.loans.find(x => x.id === id && x.createdAt === createdAt);
+  if (!loan) return;
+  const t     = getLoanType(loan.type || 'other');
+  const days  = promoAlertDays(loan);
+  const rows  = buildAmortTable(loan);
+  const totalInt = rows.reduce((s,r) => s + r.interest, 0);
+
+  const tableRows = rows.slice(0, 24).map(r => `
+    <tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+      <td class="py-1.5 pr-2 text-xs text-gray-500">${r.date}</td>
+      <td class="py-1.5 pr-2 text-xs text-right" style="color:#f1f5f9">${money(r.payment)}</td>
+      <td class="py-1.5 pr-2 text-xs text-right" style="color:#34d399">${money(r.principal)}</td>
+      <td class="py-1.5 text-xs text-right" style="color:#f97316">${money(r.interest)}</td>
+    </tr>`).join('');
+
+  $('sheet').innerHTML = `
+    <div>
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-sm font-bold text-gray-200" style="font-family:'Space Mono',monospace">Loan Detail</span>
+        <button onclick="closeSheet()" style="color:#64748b;font-size:18px;background:none;border:none;cursor:pointer">×</button>
+      </div>
+
+      <!-- Summary -->
+      <div class="rounded-xl p-4 mb-4" style="background:${hexToRgba(t.color,0.08)};border:1px solid ${hexToRgba(t.color,0.2)}">
+        <div class="text-2xl font-bold mb-1" style="color:#f8fafc;font-family:'Space Mono',monospace">${money(loan.balance)}</div>
+        <div class="text-sm font-bold mb-1 text-gray-300">${loan.label}</div>
+        <div class="flex flex-wrap gap-2 mb-2">
+          <span class="apr-badge" style="background:${hexToRgba(t.color,0.15)};color:${t.color};border:1px solid ${hexToRgba(t.color,0.3)}">${t.label}</span>
+          <span class="apr-badge" style="background:rgba(255,255,255,0.05);color:#94a3b8">${pct(loan.apr)} APR</span>
+          <span class="apr-badge" style="background:rgba(255,255,255,0.05);color:#94a3b8">Min ${money(loan.minimumPayment)}/mo</span>
+        </div>
+        ${days !== null ? `<div class="text-xs" style="color:#fdba74">Promo: ${pct(loan.promoApr)} until ${loan.promoAprEnds} → ${days} days left</div>` : ''}
+      </div>
+
+      <!-- Payoff summary -->
+      <div class="grid grid-cols-2 gap-2 mb-4">
+        <div class="rounded-xl p-3 text-center" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07)">
+          <div class="text-xs text-gray-500 mb-1">Payoff</div>
+          <div class="text-sm font-bold" style="color:#fdba74">${payoffDateStr(rows.length)}</div>
+          <div class="text-xs text-gray-500">${monthsLabel(rows.length)}</div>
+        </div>
+        <div class="rounded-xl p-3 text-center" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07)">
+          <div class="text-xs text-gray-500 mb-1">Total Interest</div>
+          <div class="text-sm font-bold" style="color:#f97316">${money(totalInt)}</div>
+          <div class="text-xs text-gray-500">at minimum payment</div>
+        </div>
+      </div>
+
+      <!-- Amortization table (first 24 months) -->
+      <div class="mb-4">
+        <div class="text-xs text-gray-500 uppercase tracking-widest mb-2" style="font-family:'Space Mono',monospace">Amortization Schedule</div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="border-bottom:1px solid rgba(255,255,255,0.1)">
+                <th class="text-left text-xs text-gray-600 pb-2 pr-2">Date</th>
+                <th class="text-right text-xs text-gray-600 pb-2 pr-2">Payment</th>
+                <th class="text-right text-xs text-gray-600 pb-2 pr-2" style="color:#34d399">Principal</th>
+                <th class="text-right text-xs text-gray-600 pb-2" style="color:#f97316">Interest</th>
+              </tr>
+            </thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </div>
+        ${rows.length > 24 ? `<div class="text-xs text-gray-600 text-center mt-2">${rows.length - 24} more months not shown</div>` : ''}
+      </div>
+
+      ${loan.deleted ? `
+        <button onclick="restoreLoan('${loan.id}',${loan.createdAt})" class="w-full py-3 rounded-xl text-sm font-bold text-white mb-2"
+          style="background:#10B981;font-family:'Space Mono',monospace">Restore</button>
+      ` : `
+        <button onclick="startEditLoan('${loan.id}',${loan.createdAt})" class="w-full py-3 rounded-xl text-sm font-bold text-white mb-2"
+          style="background:${ORANGE};font-family:'Space Mono',monospace">Edit Loan</button>
+        <button onclick="deleteLoan('${loan.id}',${loan.createdAt})" class="w-full py-3 rounded-xl text-sm font-bold text-gray-400 mb-2"
+          style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);font-family:'Space Mono',monospace">Delete</button>
+      `}
+      <button onclick="closeSheet()" class="w-full py-3 rounded-xl text-sm text-gray-500"
+        style="font-family:'Space Mono',monospace">Close</button>
+    </div>`;
+  openSheet();
+}
+
+function startEditLoan(id, createdAt) {
+  const data = loadData();
+  const loan = data.loans.find(x => x.id === id && x.createdAt === createdAt);
+  if (!loan) return;
+  editModeLoan = loan;
+  _selectedType = loan.type || 'credit_card';
+  _hasPromo = !!(loan.promoAprEnds);
+  closeSheet();
+  switchTab('add');
+}
+
+function deleteLoan(id, createdAt) {
+  const data = loadData();
+  const idx  = data.loans.findIndex(x => x.id === id && x.createdAt === createdAt);
+  if (idx >= 0) {
+    data.loans[idx].deleted   = true;
+    data.loans[idx].updatedAt = Date.now();
+    saveData(data);
+    showToast('Loan removed');
+  }
+  closeSheet();
+  renderLoans();
+}
+
+function restoreLoan(id, createdAt) {
+  const data = loadData();
+  const idx  = data.loans.findIndex(x => x.id === id && x.createdAt === createdAt);
+  if (idx >= 0) {
+    data.loans[idx].deleted   = false;
+    data.loans[idx].updatedAt = Date.now();
+    saveData(data);
+    showToast('Loan restored');
+  }
+  closeSheet();
+  renderLoans();
+}
+
+/* ════════════════════════════════════════════════════════
+   STRATEGY SHEET (from banner tap)
+════════════════════════════════════════════════════════ */
+function showStrategySheet() {
+  const data     = loadData();
+  const strategy = (data.strategies && data.strategies.active) || 'avalanche';
+  const extra    = parseFloat((data.strategies && data.strategies.extraMonthly) || 0);
+  const loans    = (data.loans || []).filter(l => !l.deleted && l.balance > 0);
+
+  let comparison = '';
+  if (loans.length) {
+    const avRes = simulateStrategy(loans, extra, 'avalanche');
+    const sbRes = simulateStrategy(loans, extra, 'snowball');
+    const saved = Math.abs(avRes.totalInterest - sbRes.totalInterest);
+    comparison = `
+      <div class="rounded-xl p-3 mb-4" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07)">
+        <div class="text-xs text-gray-500 uppercase mb-2" style="font-family:'Space Mono',monospace">Strategy Comparison</div>
+        <div class="flex justify-between text-xs mb-1.5">
+          <span style="color:#fdba74">⚡ Avalanche</span>
+          <span class="text-gray-400">${money(avRes.totalInterest)} · ${monthsLabel(avRes.months)}</span>
+        </div>
+        <div class="flex justify-between text-xs mb-2">
+          <span style="color:#c4b5fd">❄️ Snowball</span>
+          <span class="text-gray-400">${money(sbRes.totalInterest)} · ${monthsLabel(sbRes.months)}</span>
+        </div>
+        <div class="text-xs text-center" style="color:#34d399">${avRes.totalInterest <= sbRes.totalInterest ? 'Avalanche' : 'Snowball'} saves $${saved.toFixed(0)} in interest</div>
+      </div>`;
+  }
+
+  $('sheet').innerHTML = `
+    <div>
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-sm font-bold text-gray-200" style="font-family:'Space Mono',monospace">Payoff Strategy</span>
+        <button onclick="closeSheet()" style="color:#64748b;font-size:18px;background:none;border:none;cursor:pointer">×</button>
+      </div>
+      ${comparison}
+      <button onclick="setStrategy('avalanche');closeSheet()" class="w-full text-left px-4 py-3 rounded-xl mb-2 text-sm"
+        style="background:${strategy==='avalanche'?'rgba(249,115,22,0.15)':'rgba(255,255,255,0.04)'};border:1px solid ${strategy==='avalanche'?'rgba(249,115,22,0.35)':'rgba(255,255,255,0.07)'};color:${strategy==='avalanche'?'#fdba74':'#94a3b8'};font-family:'Space Mono',monospace">
+        ⚡ Avalanche — Highest APR first ${strategy==='avalanche'?' ✓':''}
+      </button>
+      <button onclick="setStrategy('snowball');closeSheet()" class="w-full text-left px-4 py-3 rounded-xl mb-4 text-sm"
+        style="background:${strategy==='snowball'?'rgba(139,92,246,0.15)':'rgba(255,255,255,0.04)'};border:1px solid ${strategy==='snowball'?'rgba(139,92,246,0.35)':'rgba(255,255,255,0.07)'};color:${strategy==='snowball'?'#c4b5fd':'#94a3b8'};font-family:'Space Mono',monospace">
+        ❄️ Snowball — Smallest balance first ${strategy==='snowball'?' ✓':''}
+      </button>
+      <div class="text-xs text-gray-500 mb-2">Extra monthly payment</div>
+      <div class="relative mb-3">
+        <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#F97316;font-weight:700;font-size:16px;font-family:'Space Mono',monospace">$</span>
+        <input id="sheetExtraInput" type="number" inputmode="decimal" min="0" step="10" value="${extra}"
+          class="w-full text-gray-100 rounded-xl border"
+          style="padding:12px 12px 12px 26px;background:rgba(249,115,22,0.06);border-color:rgba(249,115,22,0.25);font-family:'Space Mono',monospace;font-size:18px;font-weight:700"
+          oninput="setExtraMonthly(this.value)" />
+      </div>
+    </div>`;
+  openSheet();
+}
+
+/* ════════════════════════════════════════════════════════
+   SETTINGS
+════════════════════════════════════════════════════════ */
+function renderSettings() {
+  const data       = loadData();
+  const loans      = (data.loans || []).filter(l => !l.deleted);
+  const totalDebt  = loans.reduce((s,l) => s + (parseFloat(l.balance)||0), 0);
+  const loanCount  = loans.length;
+
+  $('app').innerHTML = `
+    <div class="px-4 py-4 space-y-5">
+
+      <!-- Summary -->
+      <div class="rounded-xl p-4" style="background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.15)">
+        <div class="text-xs text-gray-500 uppercase tracking-widest mb-2" style="font-family:'Space Mono',monospace;letter-spacing:0.1em">LocaLoan</div>
+        <div class="flex gap-4">
+          <div><div class="text-xs text-gray-500">Total Debt</div><div class="text-sm font-bold text-gray-200">${money(totalDebt)}</div></div>
+          <div><div class="text-xs text-gray-500">Loans</div><div class="text-sm font-bold text-gray-200">${loanCount}</div></div>
+        </div>
+      </div>
+
+      <!-- Data -->
+      <div>
+        <div class="text-xs text-gray-500 uppercase tracking-widest mb-2" style="font-family:'Space Mono',monospace;letter-spacing:0.1em">Data</div>
+        <button onclick="exportData()" class="settings-row w-full text-left">
+          <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+          <div><div class="text-sm text-gray-200">Export</div><div class="text-xs text-gray-500">Copy your loan data as JSON</div></div>
+        </button>
+        <button onclick="showImport()" class="settings-row w-full text-left">
+          <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          <div><div class="text-sm text-gray-200">Import</div><div class="text-xs text-gray-500">Restore from a JSON backup</div></div>
+        </button>
+        <button onclick="confirmClearAll()" class="settings-row w-full text-left">
+          <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+          <div><div class="text-sm text-red-400">Clear All Data</div><div class="text-xs text-gray-500">Permanently delete all loans</div></div>
+        </button>
+      </div>
+
+      <!-- Suite links -->
+      <div>
+        <div class="text-xs text-gray-500 uppercase tracking-widest mb-2" style="font-family:'Space Mono',monospace;letter-spacing:0.1em">Suite</div>
+        <button onclick="window.location.href='/Labor/'" class="settings-row w-full text-left">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="#6366F1" viewBox="0 0 24 24" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
+          <div><div class="text-sm text-gray-200">LocaLabor</div><div class="text-xs text-gray-500">Income tracker</div></div>
+          <svg class="w-4 h-4 text-gray-600 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+        <button onclick="window.location.href='/Loss/'" class="settings-row w-full text-left">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="#F43F5E" viewBox="0 0 24 24" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+          <div><div class="text-sm text-gray-200">LocaLoss</div><div class="text-xs text-gray-500">Spending tracker</div></div>
+          <svg class="w-4 h-4 text-gray-600 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
+
+      <div class="text-center text-xs text-gray-700 py-2" style="font-family:'Space Mono',monospace">
+        LocaLoan v${APP_VERSION} · LocaLedger Suite
+      </div>
+    </div>`;
+
+  updateBannerTotal();
+}
+
+/* ── Export / Import ──────────────────────────────────── */
+function exportData() {
+  const json = JSON.stringify(loadData(), null, 2);
+  if (navigator.share) {
+    navigator.share({ title: 'LocaLoan Backup', text: json }).catch(() => _copyExport(json));
+  } else {
+    _copyExport(json);
+  }
+}
+
+function _copyExport(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard')).catch(() => _fallbackCopy(text));
+  } else {
+    _fallbackCopy(text);
+  }
+}
+
+function _fallbackCopy(text) {
+  $('sheet').innerHTML = `
+    <div>
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-sm font-bold text-gray-200" style="font-family:'Space Mono',monospace">Export Data</span>
+        <button onclick="closeSheet()" style="color:#64748b;font-size:18px;background:none;border:none;cursor:pointer">×</button>
+      </div>
+      <textarea class="w-full h-48 p-3 text-xs rounded-xl bg-gray-800 border border-gray-700 text-gray-300"
+        style="font-family:'Space Mono',monospace" readonly>${text}</textarea>
+      <p class="text-xs text-gray-500 mt-2">Select all and copy to back up your loans.</p>
+    </div>`;
+  openSheet();
+}
+
+function showImport() {
+  $('sheet').innerHTML = `
+    <div>
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-sm font-bold text-gray-200" style="font-family:'Space Mono',monospace">Import Data</span>
+        <button onclick="closeSheet()" style="color:#64748b;font-size:18px;background:none;border:none;cursor:pointer">×</button>
+      </div>
+      <p class="text-xs text-gray-400 mb-3">Paste a LocaLoan JSON backup. Loans will be merged by ID.</p>
+      <textarea id="importArea" class="w-full h-40 p-3 text-xs rounded-xl bg-gray-800 border border-gray-700 text-gray-300 mb-3"
+        style="font-family:'Space Mono',monospace" placeholder='{"loans":[...]}'></textarea>
+      <button onclick="importData()"
+        class="w-full py-3 rounded-xl text-sm font-bold text-white"
+        style="background:${ORANGE};font-family:'Space Mono',monospace">Import</button>
+    </div>`;
+  openSheet();
+}
+
+function importData() {
+  try {
+    const raw     = $('importArea')?.value;
+    const parsed  = JSON.parse(raw);
+    const current = loadData();
+    const existingIds = new Set((current.loans||[]).map(l => l.id));
+    const newLoans    = (parsed.loans||[]).filter(l => !existingIds.has(l.id));
+    current.loans = [...(current.loans||[]), ...newLoans];
+    // Merge strategies if present
+    if (parsed.strategies) {
+      current.strategies = { ...current.strategies, ...parsed.strategies };
+    }
+    // Advance nextId
+    const allIds = current.loans.map(l => {
+      const parts = l.id?.split('_');
+      return parts ? parseInt(parts[parts.length-1]) : 0;
+    }).filter(n => !isNaN(n));
+    if (allIds.length) {
+      const m = loadMeta();
+      m.nextId = Math.max(m.nextId, Math.max(...allIds) + 1);
+      saveMeta(m);
+    }
+    saveData(current);
+    closeSheet();
+    showToast(`Imported ${newLoans.length} loan${newLoans.length===1?'':'s'}`);
+    renderSettings();
+  } catch(err) {
+    showToast('Invalid JSON — check your backup');
+  }
+}
+
+function confirmClearAll() {
+  $('sheet').innerHTML = `
+    <div>
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-sm font-bold text-red-400" style="font-family:'Space Mono',monospace">Clear All Data</span>
+        <button onclick="closeSheet()" style="color:#64748b;font-size:18px;background:none;border:none;cursor:pointer">×</button>
+      </div>
+      <p class="text-sm text-gray-400 mb-6">This will permanently delete all loans and reset your strategy settings. This cannot be undone.</p>
+      <button onclick="_clearAllConfirmed()" class="w-full py-3 rounded-xl text-sm font-bold text-white mb-2"
+        style="background:#ef4444;font-family:'Space Mono',monospace">Yes, Delete Everything</button>
+      <button onclick="closeSheet()" class="w-full py-3 rounded-xl text-sm text-gray-400"
+        style="font-family:'Space Mono',monospace">Cancel</button>
+    </div>`;
+  openSheet();
+}
+
+function _clearAllConfirmed() {
+  localStorage.removeItem(DATA_KEY);
+  localStorage.removeItem(META_KEY);
+  initStorage();
+  closeSheet();
+  showToast('All data cleared');
+  switchTab('dashboard');
+}
+
+/* ════════════════════════════════════════════════════════
+   SUITE LAUNCHER & DRUM
+════════════════════════════════════════════════════════ */
+const SUITE_MODULES = [
+  { id:'labor',  label:'Labor',  color:'#6366F1' },
+  { id:'loss',   label:'Loss',   color:'#F43F5E' },
+  { id:'limit',  label:'Limit',  color:'#F59E0B' },
+  { id:'loan',   label:'Loan',   color:'#F97316' },
+  { id:'legacy', label:'Legacy', color:'#10B981' },
+  { id:'liquid', label:'Liquid', color:'#06B6D4' },
+];
+
+const DRUM_FACE_H   = 44;
+let _activeModule   = 'loan';
+let _drumStep       = 3; // start on face 3 (Loan)
+let _drumIdx        = 3;
+let _launcherOpen   = false;
+let _drumHovering   = false;
+let _drumInterval   = null;
+
+function initSuiteDrum() {
+  _applyFaceColors();
+  const drum = $('suiteDrum');
+  if (drum) {
+    drum.style.transition = 'none';
+    drum.style.transform  = `translateY(-${_drumIdx * DRUM_FACE_H}px)`;
+    requestAnimationFrame(() => { if (drum) drum.style.transition = ''; });
+  }
+  const btn = $('suiteLaunchBtn');
+  if (btn) {
+    btn.addEventListener('mouseenter', () => { _drumHovering = true;  _startDrum(); });
+    btn.addEventListener('mouseleave', () => { _drumHovering = false; if (!_launcherOpen) { _stopDrum(); _settleDrum(); } });
+  }
+}
+
+function _applyFaceColors() {
+  document.querySelectorAll('.suite-face').forEach((el, i) => {
+    el.style.color = SUITE_MODULES[i % 6].color;
+  });
+}
+
+function _settleDrum() {
+  const faceIdx = SUITE_MODULES.findIndex(m => m.id === _activeModule);
+  if (faceIdx < 0) return;
+  const drum = $('suiteDrum');
+  if (!drum) return;
+  drum.style.transition = 'none';
+  _drumStep = faceIdx; _drumIdx = faceIdx;
+  drum.style.transform = `translateY(-${faceIdx * DRUM_FACE_H}px)`;
+  requestAnimationFrame(() => { if (drum) drum.style.transition = ''; });
+}
+
+function _startDrum() { if (!_drumInterval) _drumInterval = setInterval(_drumAdvance, 3200); }
+function _stopDrum()  { clearInterval(_drumInterval); _drumInterval = null; }
+
+function _drumAdvance() {
+  _drumStep++;
+  _drumIdx = _drumStep % 6;
+  const drum = $('suiteDrum');
+  if (!drum) return;
+  drum.style.transition = '';
+  if (_drumStep % 6 === 0 && _drumStep > 0) {
+    drum.style.transform = `translateY(-${_drumStep * DRUM_FACE_H}px)`;
+    setTimeout(() => {
+      drum.style.transition = 'none';
+      _drumStep = 0; _drumIdx = 0;
+      drum.style.transform = 'translateY(0)';
+      requestAnimationFrame(() => { if (drum) drum.style.transition = ''; });
+    }, 520);
+  } else {
+    drum.style.transform = `translateY(-${_drumStep * DRUM_FACE_H}px)`;
+  }
+}
+
+function toggleSuiteLauncher() {
+  if (_launcherOpen) { closeSuiteLauncher(); return; }
+  _launcherOpen = true;
+  const panel = $('suiteLauncher');
+  if (panel) panel.classList.remove('hidden');
+  const chevron = $('suiteChevron');
+  if (chevron) chevron.style.transform = 'rotate(180deg)';
+  _startDrum();
+  setTimeout(() => { document.addEventListener('click', _outsideClickHandler, { once: true }); }, 50);
+}
+
+function closeSuiteLauncher() {
+  _launcherOpen = false;
+  const panel = $('suiteLauncher');
+  if (panel) panel.classList.add('hidden');
+  const chevron = $('suiteChevron');
+  if (chevron) chevron.style.transform = '';
+  if (!_drumHovering) { _stopDrum(); _settleDrum(); }
+}
+
+function _outsideClickHandler(evt) {
+  const panel = $('suiteLauncher');
+  const btn   = $('suiteLaunchBtn');
+  if (panel && !panel.contains(evt.target) && btn && !btn.contains(evt.target)) {
+    closeSuiteLauncher();
+  }
+}
+
+function switchSuiteModule(id) {
+  closeSuiteLauncher();
+  _activeModule = id;
+
+  SUITE_MODULES.forEach(m => {
+    const btn = $(`suiteBtn-${m.id}`);
+    if (btn) btn.classList.toggle('active', m.id === id);
+  });
+
+  const faceIdx = SUITE_MODULES.findIndex(m => m.id === id);
+  if (faceIdx >= 0) {
+    const drum = $('suiteDrum');
+    if (drum) {
+      drum.style.transition = 'transform 0.4s cubic-bezier(0.4,0,0.2,1)';
+      _drumStep = faceIdx; _drumIdx = faceIdx;
+      drum.style.transform = `translateY(-${faceIdx * DRUM_FACE_H}px)`;
+      setTimeout(() => { if (drum) { drum.style.transition = 'none'; requestAnimationFrame(() => { if(drum) drum.style.transition=''; }); } }, 420);
+    }
+  }
+
+  const APP_URLS = {
+    labor:  '/Labor/',
+    loss:   '/Loss/',
+    limit:  '/Limit/?from=loan',
+    legacy: '/Legacy/?from=loan',
+    liquid: '/Liquid/?from=loan',
+  };
+
+  if (id === 'loan') {
+    switchTab('dashboard');
+  } else if (APP_URLS[id]) {
+    window.location.href = APP_URLS[id];
+  }
+}
+
+/* ════════════════════════════════════════════════════════
+   PWA / SERVICE WORKER
+════════════════════════════════════════════════════════ */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+            _showUpdateBanner(nw);
+          }
+        });
+      });
+    });
+  });
+}
+
+function _showUpdateBanner(worker) {
+  const banner = document.createElement('div');
+  banner.style.cssText = `position:fixed;bottom:calc(5rem + env(safe-area-inset-bottom,0px));left:1rem;right:1rem;z-index:9998;background:#1e293b;border:1px solid rgba(249,115,22,0.4);border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-family:'Space Mono',monospace;font-size:12px;color:#f1f5f9;box-shadow:0 4px 20px rgba(0,0,0,0.5)`;
+  banner.innerHTML = `<span style="color:#94a3b8">Update available</span><button id="updateNowBtn" style="background:${ORANGE};color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;font-family:'Space Mono',monospace;cursor:pointer">Update Now</button>`;
+  document.body.appendChild(banner);
+  banner.querySelector('#updateNowBtn').addEventListener('click', () => {
+    worker.postMessage({ type: 'SKIP_WAITING' });
+    navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
+  });
+}
+
+/* ════════════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  initSuiteDrum();
+  updateBannerTotal();
+
+  document.querySelectorAll('.tab[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  switchTab('dashboard');
+});
+</script>
+<script src="onboarding.js" defer></script>
 </body>
 </html>
