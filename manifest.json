@@ -4,7 +4,7 @@
   "start_url": ".",
   "display": "standalone",
   "background_color": "#0f172a",
-  "theme_color": "#111827",
+  "theme_color": "#F97316",
   "description": "Offline loan payoff optimizer — model avalanche vs snowball, track every debt, find the fastest path to zero",
   "icons": [
     {
