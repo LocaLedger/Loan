@@ -1,9 +1,8 @@
-const CACHE = "localoan-v1";
+const CACHE = "localoan-v2";
 const ASSETS = [
   "./",
   "./index.html",
-  "./offline-charts.js",
-  "./onboarding.js"
+  "./offline-charts.js"
 ];
 
 self.addEventListener("install", e => {
