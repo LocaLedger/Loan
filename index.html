@@ -358,6 +358,7 @@ let savedFormData   = null;
 let skipNextFormSave = false;
 let _selectedType   = "credit_card";
 let _hasPromo       = false;
+let _openAmort      = null;
 
 /* ── Storage ──────────────────────────────────────────── */
 function initStorage() {
@@ -641,6 +642,8 @@ function renderDashboard() {
 
   $('app').innerHTML = `
     <div class="px-4 py-4 space-y-4">
+
+      ${loans.length > 0 ? renderDebtRing(loans, simResult) : ''}
 
       <!-- Stats row -->
       <div class="grid grid-cols-3 gap-2">
@@ -1091,6 +1094,19 @@ function renderLoans() {
             <div class="progress-bg"><div class="progress-fill" style="width:${progressPct}%;background:${t.color}"></div></div>
           </div>` : payoffMo ? `<div class="text-xs text-gray-500 mb-1">Payoff: <span style="color:#fdba74">${payoffDateStr(payoffMo)}</span></div>` : ''}
           ${hasAlert ? `<div class="text-xs mt-1" style="color:#fdba74">⚠ Promo APR expires in ${days} day${days===1?'':'s'}</div>` : ''}
+          <div class="flex gap-2 mt-2" onclick="event.stopPropagation()">
+            <button onclick="toggleAmort('${loan.id}')" data-testid="amort-btn-${loan.id}"
+              class="text-xs px-2.5 py-1 rounded-lg font-bold"
+              style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);color:#818cf8;font-family:'Space Mono',monospace">
+              Amort
+            </button>
+            <button onclick="openRefiSheet('${loan.id}')" data-testid="refi-btn-${loan.id}"
+              class="text-xs px-2.5 py-1 rounded-lg font-bold"
+              style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.2);color:#22d3ee;font-family:'Space Mono',monospace">
+              Refi
+            </button>
+          </div>
+          <div id="amort_${loan.id}" data-testid="amort-table-${loan.id}" class="hidden mt-3"></div>
         </div>`;
     });
 
@@ -1459,6 +1475,221 @@ function _clearAllConfirmed() {
   closeSheet();
   showToast('All data cleared');
   switchTab('dashboard');
+}
+
+/* ════════════════════════════════════════════════════════
+   LN-F1: PER-LOAN AMORTIZATION TABLE
+════════════════════════════════════════════════════════ */
+function renderAmortTable(loanId) {
+  const data = loadData();
+  const loan = (data.loans || []).find(l => l.id === loanId);
+  if (!loan) return '<div class="text-xs text-gray-500">Loan not found.</div>';
+  const rows = buildAmortTable(loan);
+  const SHOW = 24;
+  const hasMore = rows.length > SHOW;
+  const displayed = rows.slice(0, SHOW);
+
+  function rowHtml(r) {
+    const isLast = r.balance <= 0.01;
+    return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+      <td class="py-1 pr-2 text-xs text-gray-500 text-right">${r.month}</td>
+      <td class="py-1 pr-2 text-xs text-gray-400">${r.date}</td>
+      <td class="py-1 pr-2 text-xs text-right" style="color:#f1f5f9">${money(r.payment)}</td>
+      <td class="py-1 pr-2 text-xs text-right" style="color:#34d399">${money(r.principal)}</td>
+      <td class="py-1 pr-2 text-xs text-right" style="color:#f97316">${money(r.interest)}</td>
+      <td class="py-1 text-xs text-right" style="color:${isLast ? '#10B981' : '#94a3b8'}">${money(r.balance)}</td>
+    </tr>`;
+  }
+
+  const allRowsHtml = rows.map(rowHtml).join('');
+  const initialRowsHtml = displayed.map(rowHtml).join('');
+
+  return `
+    <div style="max-height:300px;overflow-y:auto;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06)">
+      <table style="width:100%;border-collapse:collapse;font-family:'Space Mono',monospace">
+        <thead style="position:sticky;top:0;background:#111827">
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.1)">
+            <th class="text-right text-xs text-gray-600 pb-1.5 pr-2 pt-2 pl-2">#</th>
+            <th class="text-left text-xs text-gray-600 pb-1.5 pr-2 pt-2">Date</th>
+            <th class="text-right text-xs text-gray-600 pb-1.5 pr-2 pt-2">Payment</th>
+            <th class="text-right text-xs text-gray-600 pb-1.5 pr-2 pt-2" style="color:#34d399">Principal</th>
+            <th class="text-right text-xs text-gray-600 pb-1.5 pr-2 pt-2" style="color:#f97316">Interest</th>
+            <th class="text-right text-xs text-gray-600 pb-1.5 pr-2 pt-2">Balance</th>
+          </tr>
+        </thead>
+        <tbody id="amort-body-${loanId}">${initialRowsHtml}</tbody>
+      </table>
+    </div>
+    ${hasMore ? `<button onclick="(function(){var b=document.getElementById('amort-body-${loanId}');if(b){b.innerHTML=${JSON.stringify(allRowsHtml)};this.remove();}}).call(this)"
+      class="mt-2 w-full text-xs py-1.5 rounded-lg"
+      style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#64748b;font-family:'Space Mono',monospace">
+      Show all ${rows.length} months
+    </button>` : ''}`;
+}
+
+function toggleAmort(loanId) {
+  const el = document.getElementById(`amort_${loanId}`);
+  if (!el) return;
+  if (_openAmort === loanId) {
+    el.classList.add('hidden');
+    _openAmort = null;
+    return;
+  }
+  if (_openAmort) {
+    const old = document.getElementById(`amort_${_openAmort}`);
+    if (old) old.classList.add('hidden');
+  }
+  _openAmort = loanId;
+  el.innerHTML = renderAmortTable(loanId);
+  el.classList.remove('hidden');
+}
+
+/* ════════════════════════════════════════════════════════
+   LN-F2: DEBT FREEDOM PROGRESS RING
+════════════════════════════════════════════════════════ */
+function renderDebtRing(loans, simResult) {
+  const totalOriginal = loans.reduce((s, l) => s + (parseFloat(l.originalBalance) || 0), 0);
+  const totalCurrent  = loans.reduce((s, l) => s + (parseFloat(l.balance) || 0), 0);
+  const paidPct = totalOriginal > 0 ? Math.max(0, Math.min(1, 1 - (totalCurrent / totalOriginal))) : 0;
+  const circumference = 2 * Math.PI * 40; // ≈ 251.33
+  const offset = circumference * (1 - paidPct);
+  const payoffLine = simResult
+    ? `<div class="text-xs text-gray-500 mt-1">Debt-free <span style="color:#fdba74">${payoffDateStr(simResult.months)}</span></div>`
+    : '';
+
+  return `
+    <div data-testid="debt-ring" class="flex flex-col items-center justify-center py-2">
+      <svg width="96" height="96" viewBox="0 0 96 96">
+        <circle cx="48" cy="48" r="40" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8"/>
+        <circle cx="48" cy="48" r="40" fill="none" stroke="#F97316" stroke-width="8"
+          stroke-dasharray="${circumference.toFixed(2)}"
+          stroke-dashoffset="${offset.toFixed(2)}"
+          stroke-linecap="round"
+          transform="rotate(-90 48 48)"/>
+        <text x="48" y="44" text-anchor="middle" dominant-baseline="middle"
+          font-size="14" font-weight="700" fill="#F97316"
+          data-testid="ring-pct">${Math.round(paidPct * 100)}%</text>
+        <text x="48" y="58" text-anchor="middle" dominant-baseline="middle"
+          font-size="8" fill="#64748b">paid off</text>
+      </svg>
+      ${payoffLine}
+    </div>`;
+}
+
+/* ════════════════════════════════════════════════════════
+   LN-F3: REFINANCE ANALYZER
+════════════════════════════════════════════════════════ */
+function calcRefi(loan, newAprPct, newTermMonths, closingCosts) {
+  const r = (newAprPct / 100) / 12;
+  const n = newTermMonths;
+  const P = parseFloat(loan.balance) || 0;
+  let newMonthlyPmt;
+  if (r === 0) {
+    newMonthlyPmt = n > 0 ? P / n : 0;
+  } else {
+    newMonthlyPmt = P * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1);
+  }
+
+  const amortRows = buildAmortTable(loan);
+  const oldTotalInterest = amortRows.reduce((s, row) => s + row.interest, 0);
+  const oldMonthlyPmt = parseFloat(loan.minimumPayment) || 0;
+
+  // New total interest
+  const newTotalInterest = (newMonthlyPmt * n) - P;
+
+  const interestSaved = oldTotalInterest - newTotalInterest;
+
+  let breakEvenMonths = null;
+  if (closingCosts > 0 && oldMonthlyPmt > newMonthlyPmt && (oldMonthlyPmt - newMonthlyPmt) > 0) {
+    breakEvenMonths = Math.ceil(closingCosts / (oldMonthlyPmt - newMonthlyPmt));
+  }
+
+  return { newMonthlyPmt, oldTotalInterest, newTotalInterest, interestSaved, breakEvenMonths };
+}
+
+function updateRefiCalc(loanId) {
+  const data = loadData();
+  const loan = (data.loans || []).find(l => l.id === loanId);
+  if (!loan) return;
+  const newAprPct     = parseFloat(document.getElementById('refi-apr')?.value) || 0;
+  const newTermMonths = parseInt(document.getElementById('refi-term')?.value)   || 60;
+  const closingCosts  = parseFloat(document.getElementById('refi-costs')?.value) || 0;
+
+  const result = calcRefi(loan, newAprPct, newTermMonths, closingCosts);
+  const out = document.getElementById('refi-output');
+  if (!out) return;
+
+  const savedColor  = result.interestSaved >= 0 ? '#34d399' : '#f87171';
+  const savedPrefix = result.interestSaved >= 0 ? 'Save' : 'Cost';
+  const breakEvenHtml = result.breakEvenMonths !== null
+    ? `<div class="flex justify-between text-xs mt-2 pt-2 border-t border-gray-800">
+         <span class="text-gray-500">Break-even</span>
+         <span style="color:#fdba74">${result.breakEvenMonths} months</span>
+       </div>`
+    : (closingCosts > 0 ? `<div class="text-xs mt-2 text-gray-600">No break-even (payment increases)</div>` : '');
+
+  out.innerHTML = `
+    <div class="rounded-xl p-3 mt-3" style="background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.15)">
+      <div class="flex justify-between text-sm mb-2">
+        <span class="text-gray-400">New Monthly</span>
+        <span class="font-bold" style="color:#22d3ee">${money(result.newMonthlyPmt)}</span>
+      </div>
+      <div class="flex justify-between text-xs mb-1">
+        <span class="text-gray-500">Old total interest</span>
+        <span style="color:#f97316">${money(result.oldTotalInterest)}</span>
+      </div>
+      <div class="flex justify-between text-xs mb-1">
+        <span class="text-gray-500">New total interest</span>
+        <span style="color:#f97316">${money(result.newTotalInterest)}</span>
+      </div>
+      <div class="flex justify-between text-xs">
+        <span class="text-gray-500">${savedPrefix}</span>
+        <span style="color:${savedColor};font-weight:700">${money(Math.abs(result.interestSaved))}</span>
+      </div>
+      ${breakEvenHtml}
+    </div>`;
+}
+
+function openRefiSheet(loanId) {
+  const data = loadData();
+  const loan = (data.loans || []).find(l => l.id === loanId);
+  if (!loan) return;
+
+  $('sheet').innerHTML = `
+    <div>
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-sm font-bold text-gray-200" style="font-family:'Space Mono',monospace">Refi Analyzer — ${loan.label}</span>
+        <button onclick="closeSheet()" style="color:#64748b;font-size:18px;background:none;border:none;cursor:pointer">×</button>
+      </div>
+
+      <div class="float-wrap mb-3">
+        <input id="refi-apr" type="number" inputmode="decimal" step="0.01" min="0" max="100"
+          class="float-input" placeholder="" value="${loan.apr || ''}"
+          oninput="updateRefiCalc('${loanId}')" />
+        <label class="float-label ${loan.apr ? 'active' : ''}">New APR (%)</label>
+      </div>
+      <div class="float-wrap mb-3">
+        <input id="refi-term" type="number" inputmode="numeric" step="1" min="1"
+          class="float-input has-value" placeholder="" value="60"
+          oninput="updateRefiCalc('${loanId}')" />
+        <label class="float-label active">New Term (months)</label>
+      </div>
+      <div class="float-wrap mb-3">
+        <input id="refi-costs" type="number" inputmode="decimal" step="0.01" min="0"
+          class="float-input has-value" placeholder="" value="0"
+          oninput="updateRefiCalc('${loanId}')" />
+        <label class="float-label active">Closing Costs ($)</label>
+      </div>
+
+      <div id="refi-output"></div>
+
+      <button onclick="closeSheet()" class="w-full py-3 rounded-xl text-sm text-gray-500 mt-4"
+        style="font-family:'Space Mono',monospace">Close</button>
+    </div>`;
+
+  openSheet();
+  // Trigger initial calculation if APR is pre-filled
+  if (loan.apr) updateRefiCalc(loanId);
 }
 
 /* ════════════════════════════════════════════════════════
